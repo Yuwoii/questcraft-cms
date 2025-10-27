@@ -12,7 +12,6 @@ async function getRewards() {
           id: true,
           name: true,
           iconEmoji: true,
-          iconName: true,
         },
       },
       tags: {

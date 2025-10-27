@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { Package } from 'lucide-react'
-import * as Icons from 'lucide-react'
 import { CreateCollectionButton } from '@/components/buttons/create-collection-button'
 
 async function getCollections() {
@@ -12,7 +11,6 @@ async function getCollections() {
       name: true,
       description: true,
       iconEmoji: true,
-      iconName: true,
       isActive: true,
       sortOrder: true,
       createdAt: true,
@@ -54,12 +52,7 @@ export default async function CollectionsPage() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {collections.map((collection) => {
-            const IconComponent = collection.iconName
-              ? (Icons[collection.iconName as keyof typeof Icons] as any)
-              : null
-
-            return (
+          {collections.map((collection) => (
               <Link
                 key={collection.id}
                 href={`/collections/${collection.id}`}
@@ -67,11 +60,7 @@ export default async function CollectionsPage() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    {IconComponent ? (
-                      <IconComponent className="h-10 w-10 text-gray-700" />
-                    ) : (
-                      <span className="text-4xl">{collection.iconEmoji}</span>
-                    )}
+                    <span className="text-4xl">{collection.iconEmoji}</span>
                     <div>
                       <h3 className="font-semibold text-gray-900 group-hover:text-blue-600">
                         {collection.name}
@@ -99,8 +88,7 @@ export default async function CollectionsPage() {
                 </span>
               </div>
             </Link>
-            )
-          })}
+          ))}
         </div>
       )}
     </div>

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import * as Icons from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -19,7 +18,6 @@ interface Reward {
     id: string
     name: string
     iconEmoji: string
-    iconName: string | null
   }
   tags: Array<{
     tag: {
@@ -49,14 +47,10 @@ function CollectionSection({
   collection, 
   rewards 
 }: { 
-  collection: { id: string; name: string; iconEmoji: string; iconName: string | null }
+  collection: { id: string; name: string; iconEmoji: string }
   rewards: Reward[]
 }) {
   const [isExpanded, setIsExpanded] = useState(true)
-
-  const IconComponent = collection.iconName
-    ? (Icons[collection.iconName as keyof typeof Icons] as any)
-    : null
 
   return (
     <div className="space-y-4">
@@ -66,11 +60,7 @@ function CollectionSection({
         className="flex items-center justify-between w-full p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
       >
         <div className="flex items-center gap-3">
-          {IconComponent ? (
-            <IconComponent className="h-6 w-6 text-gray-700" />
-          ) : (
-            <span className="text-2xl">{collection.iconEmoji}</span>
-          )}
+          <span className="text-2xl">{collection.iconEmoji}</span>
           <div className="text-left">
             <h2 className="text-lg font-semibold text-gray-900">{collection.name}</h2>
             <p className="text-sm text-gray-500">{rewards.length} rewards</p>
@@ -190,7 +180,6 @@ export default function RewardsGroupedView({ rewards }: RewardsGroupedViewProps)
     const collectionId = reward.collection?.id || 'uncategorized'
     const collectionName = reward.collection?.name || 'Uncategorized'
     const collectionEmoji = reward.collection?.iconEmoji || '📦'
-    const collectionIconName = reward.collection?.iconName || null
 
     if (!acc[collectionId]) {
       acc[collectionId] = {
@@ -198,14 +187,13 @@ export default function RewardsGroupedView({ rewards }: RewardsGroupedViewProps)
           id: collectionId,
           name: collectionName,
           iconEmoji: collectionEmoji,
-          iconName: collectionIconName,
         },
         rewards: []
       }
     }
     acc[collectionId].rewards.push(reward)
     return acc
-  }, {} as Record<string, { collection: { id: string; name: string; iconEmoji: string; iconName: string | null }; rewards: Reward[] }>)
+  }, {} as Record<string, { collection: { id: string; name: string; iconEmoji: string }; rewards: Reward[] }>)
 
   // Sort collections alphabetically by name
   const sortedCollections = Object.values(groupedRewards).sort((a, b) => 
