@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
+import * as Icons from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -25,11 +26,13 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
+import { IconPicker } from '@/components/ui/icon-picker'
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
   description: z.string().max(500).optional(),
   iconEmoji: z.string().max(10).optional(),
+  iconName: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -39,19 +42,13 @@ interface CreateCollectionDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-// Popular emojis for quick selection
-const POPULAR_EMOJIS = [
-  '📦', '🎁', '🎯', '⭐', '🏆', '👑', '❤️', '⚡',
-  '🔥', '✨', '🎨', '🎮', '🎵', '📸', '🌟', '💎',
-  '🚀', '🛡️', '⚔️', '🎪', '🎭', '🎬', '🎤', '🎧',
-]
-
 export function CreateCollectionDialog({
   open,
   onOpenChange,
 }: CreateCollectionDialogProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -59,6 +56,7 @@ export function CreateCollectionDialog({
       name: '',
       description: '',
       iconEmoji: '📦',
+      iconName: '',
     },
   })
 
@@ -69,10 +67,7 @@ export function CreateCollectionDialog({
       const response = await fetch('/api/collections', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...data,
-          iconName: null, // Always null now
-        }),
+        body: JSON.stringify(data),
       })
 
       if (!response.ok) {
@@ -91,7 +86,9 @@ export function CreateCollectionDialog({
     }
   }
 
+  const iconName = form.watch('iconName')
   const iconEmoji = form.watch('iconEmoji')
+  const IconComponent = iconName ? (Icons[iconName as keyof typeof Icons] as any) : null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -119,6 +116,31 @@ export function CreateCollectionDialog({
               )}
             />
 
+            <div className="space-y-2">
+              <FormLabel>Icon</FormLabel>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIconPickerOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  {IconComponent ? (
+                    <IconComponent className="h-5 w-5" />
+                  ) : (
+                    <span className="text-xl">{iconEmoji || '📦'}</span>
+                  )}
+                  <span>Choose Icon</span>
+                </Button>
+                {iconName && (
+                  <span className="text-sm text-gray-600">Selected: {iconName}</span>
+                )}
+              </div>
+              <FormDescription>
+                Choose a custom icon or use emoji as fallback
+              </FormDescription>
+            </div>
+
             <FormField
               control={form.control}
               name="iconEmoji"
@@ -126,33 +148,10 @@ export function CreateCollectionDialog({
                 <FormItem>
                   <FormLabel>Icon Emoji</FormLabel>
                   <FormControl>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-3xl">{iconEmoji || '📦'}</span>
-                        <Input 
-                          placeholder="📦" 
-                          maxLength={10} 
-                          {...field}
-                          className="flex-1"
-                        />
-                      </div>
-                      <div className="grid grid-cols-8 gap-2">
-                        {POPULAR_EMOJIS.map((emoji) => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => form.setValue('iconEmoji', emoji)}
-                            className="text-2xl hover:bg-gray-100 rounded p-2 transition-colors"
-                            title={`Use ${emoji}`}
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <Input placeholder="🐱" maxLength={10} {...field} />
                   </FormControl>
                   <FormDescription>
-                    Type an emoji or click one from the grid above
+                    Choose an emoji to represent this collection
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -195,7 +194,15 @@ export function CreateCollectionDialog({
           </form>
         </Form>
       </DialogContent>
+      
+      <IconPicker
+        value={iconName}
+        onChange={(name) => form.setValue('iconName', name || '')}
+        open={iconPickerOpen}
+        onOpenChange={setIconPickerOpen}
+      />
     </Dialog>
   )
 }
+
 
