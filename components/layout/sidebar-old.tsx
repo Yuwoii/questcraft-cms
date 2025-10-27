@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
@@ -11,8 +10,6 @@ import {
   Tag,
   FileJson,
   LogOut,
-  Menu,
-  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -26,13 +23,9 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const [isOpen, setIsOpen] = useState(false)
 
-  const toggleSidebar = () => setIsOpen(!isOpen)
-  const closeSidebar = () => setIsOpen(false)
-
-  const sidebarContent = (
-    <>
+  return (
+    <div className="flex h-full w-64 flex-col bg-gray-900 text-white">
       <div className="flex h-16 items-center gap-2 px-6 border-b border-gray-800">
         <Package className="h-8 w-8 text-blue-500" />
         <span className="text-xl font-bold">QuestCraft CMS</span>
@@ -45,7 +38,6 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
-              onClick={closeSidebar}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 isActive
@@ -69,40 +61,7 @@ export function Sidebar() {
           Sign Out
         </button>
       </div>
-    </>
-  )
-
-  return (
-    <>
-      {/* Mobile Menu Button */}
-      <button
-        onClick={toggleSidebar}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors"
-        aria-label="Toggle menu"
-      >
-        {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-      </button>
-
-      {/* Mobile Overlay */}
-      {isOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-30"
-          onClick={closeSidebar}
-        />
-      )}
-
-      {/* Sidebar - Desktop (always visible) and Mobile (slide in) */}
-      <div
-        className={cn(
-          'flex h-full w-64 flex-col bg-gray-900 text-white transition-transform duration-300 ease-in-out',
-          'lg:relative lg:translate-x-0', // Desktop: always visible
-          'fixed inset-y-0 left-0 z-40', // Mobile: fixed positioning
-          isOpen ? 'translate-x-0' : '-translate-x-full' // Mobile: slide animation
-        )}
-      >
-        {sidebarContent}
-      </div>
-    </>
+    </div>
   )
 }
 

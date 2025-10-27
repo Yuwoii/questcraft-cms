@@ -102,19 +102,19 @@ function CollectionSection({
                   {/* Image Preview */}
                   <div className="aspect-square bg-gray-100 flex items-center justify-center relative overflow-hidden">
                     {reward.mediaType === 'video' ? (
-                      reward.googleDriveThumbnailId ? (
-                        <Image
-                          src={getGoogleDriveThumbnailUrl(reward.googleDriveThumbnailId)}
-                          alt={reward.name}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      ) : (
-                        <div className="relative w-full h-full bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center">
-                          <Video className="h-16 w-16 text-purple-400" />
-                        </div>
-                      )
+                      <Image
+                        src={getGoogleDriveThumbnailUrl(reward.googleDriveThumbnailId || reward.googleDriveFileId)}
+                        alt={reward.name}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                        onError={(e) => {
+                          // Fallback to placeholder if thumbnail fails to load
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'none'
+                          target.parentElement?.classList.add('bg-gradient-to-br', 'from-purple-100', 'to-blue-100')
+                        }}
+                      />
                     ) : (
                       <Image
                         src={getGoogleDriveThumbnailUrl(reward.googleDriveFileId)}
