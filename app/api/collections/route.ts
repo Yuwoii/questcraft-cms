@@ -17,6 +17,7 @@ export async function GET() {
         id: true,
         name: true,
         iconEmoji: true,
+        iconName: true,
       },
     })
 
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { name, description, iconEmoji } = body
+    const { name, description, iconEmoji, iconName } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
         name,
         description: description || null,
         iconEmoji: iconEmoji || '📦',
+        iconName: iconName || null,
         isActive: true,
         sortOrder: 0,
       },

@@ -1,10 +1,9 @@
-'use client'
-
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
+import * as Icons from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -25,11 +24,13 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
+import { IconPicker } from '@/components/ui/icon-picker'
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
   description: z.string().max(500).optional(),
   iconEmoji: z.string().max(10).optional(),
+  iconName: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -45,6 +46,7 @@ export function CreateCollectionDialog({
 }: CreateCollectionDialogProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -52,6 +54,7 @@ export function CreateCollectionDialog({
       name: '',
       description: '',
       iconEmoji: '📦',
+      iconName: '',
     },
   })
 
@@ -81,6 +84,10 @@ export function CreateCollectionDialog({
     }
   }
 
+  const iconName = form.watch('iconName')
+  const iconEmoji = form.watch('iconEmoji')
+  const IconComponent = iconName ? (Icons[iconName as keyof typeof Icons] as any) : null
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
@@ -106,6 +113,31 @@ export function CreateCollectionDialog({
                 </FormItem>
               )}
             />
+
+            <div className="space-y-2">
+              <FormLabel>Icon</FormLabel>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIconPickerOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  {IconComponent ? (
+                    <IconComponent className="h-5 w-5" />
+                  ) : (
+                    <span className="text-xl">{iconEmoji || '📦'}</span>
+                  )}
+                  <span>Choose Icon</span>
+                </Button>
+                {iconName && (
+                  <span className="text-sm text-gray-600">Selected: {iconName}</span>
+                )}
+              </div>
+              <FormDescription>
+                Choose a custom icon or use emoji as fallback
+              </FormDescription>
+            </div>
 
             <FormField
               control={form.control}
@@ -160,6 +192,13 @@ export function CreateCollectionDialog({
           </form>
         </Form>
       </DialogContent>
+      
+      <IconPicker
+        value={iconName}
+        onChange={(name) => form.setValue('iconName', name || '')}
+        open={iconPickerOpen}
+        onOpenChange={setIconPickerOpen}
+      />
     </Dialog>
   )
 }

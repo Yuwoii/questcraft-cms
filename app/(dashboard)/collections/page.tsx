@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { Package } from 'lucide-react'
+import * as Icons from 'lucide-react'
 import { CreateCollectionButton } from '@/components/buttons/create-collection-button'
 
 async function getCollections() {
@@ -44,25 +45,34 @@ export default async function CollectionsPage() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {collections.map((collection) => (
-            <Link
-              key={collection.id}
-              href={`/collections/${collection.id}`}
-              className="group rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-4xl">{collection.iconEmoji}</span>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 group-hover:text-blue-600">
-                      {collection.name}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {collection._count.rewards} rewards
-                    </p>
+          {collections.map((collection) => {
+            const IconComponent = collection.iconName
+              ? (Icons[collection.iconName as keyof typeof Icons] as any)
+              : null
+
+            return (
+              <Link
+                key={collection.id}
+                href={`/collections/${collection.id}`}
+                className="group rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    {IconComponent ? (
+                      <IconComponent className="h-10 w-10 text-gray-700" />
+                    ) : (
+                      <span className="text-4xl">{collection.iconEmoji}</span>
+                    )}
+                    <div>
+                      <h3 className="font-semibold text-gray-900 group-hover:text-blue-600">
+                        {collection.name}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {collection._count.rewards} rewards
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
               {collection.description && (
                 <p className="mt-3 text-sm text-gray-600 line-clamp-2">
                   {collection.description}
@@ -80,7 +90,8 @@ export default async function CollectionsPage() {
                 </span>
               </div>
             </Link>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

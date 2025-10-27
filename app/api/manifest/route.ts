@@ -38,6 +38,7 @@ export async function GET() {
           id: reward.collection.id,
           name: reward.collection.name,
           emoji: reward.collection.iconEmoji,
+          iconName: reward.collection.iconName,
         },
         tags: reward.tags.map((rt) => rt.tag.name),
         createdAt: reward.createdAt.toISOString(),
@@ -79,6 +80,7 @@ async function getCollectionsSummary() {
     name: col.name,
     description: col.description || undefined,
     emoji: col.iconEmoji,
+    iconName: col.iconName,
     rewardCount: col._count.rewards,
   }))
 }
