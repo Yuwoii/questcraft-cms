@@ -2,6 +2,28 @@ import { google } from 'googleapis'
 import { Readable } from 'stream'
 
 /**
+ * Google Drive file response type
+ */
+export interface GoogleDriveFile {
+  id: string
+  name: string
+  mimeType: string
+  thumbnailLink?: string
+  size?: string
+  createdTime: string
+  webViewLink: string
+}
+
+/**
+ * Google Drive folder response type
+ */
+export interface GoogleDriveFolder {
+  id: string
+  name: string
+  createdTime: string
+}
+
+/**
  * Upload a file to Google Drive using the user's OAuth token
  * @param accessToken User's OAuth access token from NextAuth session
  * @param fileBuffer File data as Buffer
@@ -108,11 +130,15 @@ export async function deleteFromGoogleDriveWithOAuth(
 
 /**
  * List files in a folder using OAuth
+ * @param accessToken User's OAuth access token
+ * @param folderId Optional folder ID to list files from
+ * @param mimeTypeFilter Optional MIME type filter (e.g., 'image/' or 'video/')
  */
 export async function listGoogleDriveFilesWithOAuth(
   accessToken: string,
-  folderId?: string
-) {
+  folderId?: string,
+  mimeTypeFilter?: string
+): Promise<GoogleDriveFile[]> {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET
@@ -125,21 +151,89 @@ export async function listGoogleDriveFilesWithOAuth(
   const drive = google.drive({ version: 'v3', auth: oauth2Client })
 
   try {
-    const query = folderId
-      ? `'${folderId}' in parents and trashed=false`
-      : 'trashed=false'
+    // Build query string
+    let query = 'trashed=false'
+    
+    if (folderId) {
+      query = `'${folderId}' in parents and ${query}`
+    }
+    
+    // Add MIME type filter if provided (e.g., for images/videos)
+    if (mimeTypeFilter) {
+      query = `${query} and (mimeType contains 'image/' or mimeType contains 'video/')`
+    }
 
     const response = await drive.files.list({
       q: query,
-      fields: 'files(id, name, mimeType, webViewLink, createdTime)',
+      fields: 'files(id, name, mimeType, thumbnailLink, size, createdTime, webViewLink)',
       orderBy: 'createdTime desc',
       pageSize: 100,
     })
 
-    return response.data.files || []
+    const files = response.data.files || []
+    
+    // Map to our typed interface
+    return files.map((file): GoogleDriveFile => ({
+      id: file.id as string,
+      name: file.name as string,
+      mimeType: file.mimeType as string,
+      thumbnailLink: file.thumbnailLink || undefined,
+      size: file.size || undefined,
+      createdTime: file.createdTime as string,
+      webViewLink: file.webViewLink as string,
+    }))
   } catch (error) {
     console.error('Error listing Google Drive files:', error)
     throw new Error('Failed to list files from Google Drive')
+  }
+}
+
+/**
+ * List folders in Google Drive using OAuth
+ * @param accessToken User's OAuth access token
+ * @param parentId Optional parent folder ID to list folders from
+ */
+export async function listGoogleDriveFoldersWithOAuth(
+  accessToken: string,
+  parentId?: string
+): Promise<GoogleDriveFolder[]> {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET
+  )
+  
+  oauth2Client.setCredentials({
+    access_token: accessToken,
+  })
+
+  const drive = google.drive({ version: 'v3', auth: oauth2Client })
+
+  try {
+    // Build query string
+    let query = `trashed=false and mimeType='application/vnd.google-apps.folder'`
+    
+    if (parentId) {
+      query = `'${parentId}' in parents and ${query}`
+    }
+
+    const response = await drive.files.list({
+      q: query,
+      fields: 'files(id, name, createdTime)',
+      orderBy: 'name',
+      pageSize: 100,
+    })
+
+    const folders = response.data.files || []
+    
+    // Map to our typed interface
+    return folders.map((folder): GoogleDriveFolder => ({
+      id: folder.id as string,
+      name: folder.name as string,
+      createdTime: folder.createdTime as string,
+    }))
+  } catch (error) {
+    console.error('Error listing Google Drive folders:', error)
+    throw new Error('Failed to list folders from Google Drive')
   }
 }
 
