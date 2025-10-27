@@ -7,7 +7,16 @@ import { CreateCollectionButton } from '@/components/buttons/create-collection-b
 async function getCollections() {
   return prisma.collection.findMany({
     orderBy: { sortOrder: 'asc' },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      iconEmoji: true,
+      iconName: true,
+      isActive: true,
+      sortOrder: true,
+      createdAt: true,
+      updatedAt: true,
       _count: {
         select: { rewards: true },
       },

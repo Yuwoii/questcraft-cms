@@ -7,7 +7,14 @@ async function getRewards() {
   return prisma.reward.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
-      collection: true,
+      collection: {
+        select: {
+          id: true,
+          name: true,
+          iconEmoji: true,
+          iconName: true,
+        },
+      },
       tags: {
         include: {
           tag: true,
