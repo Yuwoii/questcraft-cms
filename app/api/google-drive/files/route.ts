@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { listGoogleDriveFilesWithOAuth, GoogleDriveFile } from '@/lib/google-drive-oauth'
 import { isValidDriveId } from '@/lib/google-drive'
 
+// Force dynamic rendering for this route (uses headers for authentication)
+export const dynamic = 'force-dynamic'
+
 /**
  * Response type for the Google Drive files API endpoint
  */
