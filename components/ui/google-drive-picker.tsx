@@ -5,6 +5,41 @@ import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { FolderOpen, Loader2, AlertCircle } from 'lucide-react'
 
+// Ensure Google Picker appears above all other modals and is interactive
+const pickerStyles = `
+  /* Google Picker modal and backdrop - must be above Radix Dialog (z-50) */
+  .picker-dialog {
+    z-index: 10000 !important;
+    pointer-events: auto !important;
+  }
+  .picker-dialog-bg {
+    z-index: 9999 !important;
+    pointer-events: auto !important;
+  }
+  .picker {
+    z-index: 10000 !important;
+    pointer-events: auto !important;
+  }
+  /* Google Picker container */
+  div[role="dialog"][aria-label*="Google"],
+  div[role="dialog"][aria-label*="picker"],
+  div[role="dialog"][aria-label*="Drive"] {
+    z-index: 10000 !important;
+    pointer-events: auto !important;
+  }
+  /* Ensure picker backdrop is clickable */
+  .picker-dialog-bg, .picker > div:first-child {
+    z-index: 9999 !important;
+    pointer-events: auto !important;
+  }
+  /* Catch-all for any Google Picker iframe or container */
+  iframe[src*="picker"],
+  iframe[src*="drive.google.com"] {
+    z-index: 10000 !important;
+    pointer-events: auto !important;
+  }
+`
+
 // Reuse the existing GoogleDriveFile interface structure
 interface GoogleDriveFile {
   id: string
@@ -29,6 +64,24 @@ export function GoogleDrivePicker({
   const [pickerApiLoaded, setPickerApiLoaded] = useState(false)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Inject CSS for picker z-index on mount
+  useEffect(() => {
+    const styleElement = document.createElement('style')
+    styleElement.id = 'google-picker-zindex-fix'
+    styleElement.textContent = pickerStyles
+    
+    if (!document.getElementById('google-picker-zindex-fix')) {
+      document.head.appendChild(styleElement)
+    }
+
+    return () => {
+      const existingStyle = document.getElementById('google-picker-zindex-fix')
+      if (existingStyle) {
+        existingStyle.remove()
+      }
+    }
+  }, [])
 
   // Load the Picker API
   useEffect(() => {
