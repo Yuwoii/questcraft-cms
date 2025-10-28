@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { listGoogleDriveFoldersWithOAuth, GoogleDriveFolder } from '@/lib/google-drive-oauth'
+import { isValidDriveId } from '@/lib/google-drive'
 
 /**
  * Response type for the Google Drive folders API endpoint
@@ -10,16 +11,6 @@ type GoogleDriveFolderResponse = {
   id: string
   name: string
   createdTime: string
-}
-
-/**
- * Validates a Google Drive folder ID
- * @param folderId The folder ID to validate
- * @returns true if valid, false otherwise
- */
-function isValidFolderId(folderId: string): boolean {
-  // Google Drive IDs contain only letters, digits, underscores, and hyphens
-  return /^[a-zA-Z0-9_-]+$/.test(folderId)
 }
 
 export async function GET(request: NextRequest) {
@@ -43,8 +34,11 @@ export async function GET(request: NextRequest) {
     // Extract optional parentId from query parameters
     const parentId = request.nextUrl.searchParams.get('parentId')
 
+    // Extract optional pageToken from query parameters
+    const pageToken = request.nextUrl.searchParams.get('pageToken')
+
     // Validate parentId if provided
-    if (parentId && !isValidFolderId(parentId)) {
+    if (parentId && !isValidDriveId(parentId)) {
       return NextResponse.json(
         { error: 'Invalid parentId' },
         { status: 400 }
@@ -52,19 +46,23 @@ export async function GET(request: NextRequest) {
     }
 
     // List folders from Google Drive
-    const folders: GoogleDriveFolder[] = await listGoogleDriveFoldersWithOAuth(
+    const result = await listGoogleDriveFoldersWithOAuth(
       accessToken,
-      parentId || undefined
+      parentId || undefined,
+      pageToken || undefined
     )
 
     // Map to explicit response type with only documented fields
-    const response: GoogleDriveFolderResponse[] = folders.map((folder) => ({
+    const response: GoogleDriveFolderResponse[] = result.folders.map((folder) => ({
       id: folder.id,
       name: folder.name,
       createdTime: folder.createdTime,
     }))
 
-    return NextResponse.json(response, { status: 200 })
+    return NextResponse.json({
+      folders: response,
+      nextPageToken: result.nextPageToken
+    }, { status: 200 })
   } catch (error) {
     console.error('Error listing Google Drive folders:', error)
     return NextResponse.json(

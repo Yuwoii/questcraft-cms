@@ -192,16 +192,18 @@ export async function listGoogleDriveFilesWithOAuth(
  * List folders in Google Drive using OAuth
  * @param accessToken User's OAuth access token
  * @param parentId Optional parent folder ID to list folders from
+ * @param pageToken Optional page token for pagination
  */
 export async function listGoogleDriveFoldersWithOAuth(
   accessToken: string,
-  parentId?: string
-): Promise<GoogleDriveFolder[]> {
+  parentId?: string,
+  pageToken?: string
+): Promise<{ folders: GoogleDriveFolder[], nextPageToken?: string }> {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET
   )
-  
+
   oauth2Client.setCredentials({
     access_token: accessToken,
   })
@@ -211,26 +213,34 @@ export async function listGoogleDriveFoldersWithOAuth(
   try {
     // Build query string
     let query = `trashed=false and mimeType='application/vnd.google-apps.folder'`
-    
+
     if (parentId) {
       query = `'${parentId}' in parents and ${query}`
     }
 
     const response = await drive.files.list({
       q: query,
-      fields: 'files(id, name, createdTime)',
+      fields: 'files(id, name, createdTime), nextPageToken',
       orderBy: 'name',
       pageSize: 100,
+      pageToken: pageToken,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     })
 
     const folders = response.data.files || []
-    
+
     // Map to our typed interface
-    return folders.map((folder): GoogleDriveFolder => ({
+    const mappedFolders = folders.map((folder): GoogleDriveFolder => ({
       id: folder.id as string,
       name: folder.name as string,
       createdTime: folder.createdTime as string,
     }))
+
+    return {
+      folders: mappedFolders,
+      nextPageToken: response.data.nextPageToken || undefined
+    }
   } catch (error) {
     console.error('Error listing Google Drive folders:', error)
     throw new Error('Failed to list folders from Google Drive')

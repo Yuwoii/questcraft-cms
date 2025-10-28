@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { listGoogleDriveFilesWithOAuth, GoogleDriveFile } from '@/lib/google-drive-oauth'
+import { isValidDriveId } from '@/lib/google-drive'
 
 /**
  * Response type for the Google Drive files API endpoint
@@ -14,16 +15,6 @@ type GoogleDriveFileResponse = {
   size?: string
   createdTime: string
   webViewLink: string
-}
-
-/**
- * Validates a Google Drive folder ID
- * @param folderId The folder ID to validate
- * @returns true if valid, false otherwise
- */
-function isValidFolderId(folderId: string): boolean {
-  // Google Drive IDs contain only letters, digits, underscores, and hyphens
-  return /^[a-zA-Z0-9_-]+$/.test(folderId)
 }
 
 export async function GET(request: NextRequest) {
@@ -48,7 +39,7 @@ export async function GET(request: NextRequest) {
     const folderId = request.nextUrl.searchParams.get('folderId')
 
     // Validate folderId if provided
-    if (folderId && !isValidFolderId(folderId)) {
+    if (folderId && !isValidDriveId(folderId)) {
       return NextResponse.json(
         { error: 'Invalid folderId' },
         { status: 400 }

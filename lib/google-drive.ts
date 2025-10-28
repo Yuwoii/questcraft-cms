@@ -1,6 +1,16 @@
 import { google } from 'googleapis'
 import { Readable } from 'stream'
 
+/**
+ * Validates a Google Drive folder/file ID
+ * @param driveId The drive ID to validate
+ * @returns true if valid, false otherwise
+ */
+export function isValidDriveId(driveId: string): boolean {
+  // Google Drive IDs contain only letters, digits, underscores, and hyphens
+  return /^[a-zA-Z0-9_-]+$/.test(driveId)
+}
+
 // Initialize Google Drive client
 export function getDriveClient() {
   const auth = new google.auth.GoogleAuth({
