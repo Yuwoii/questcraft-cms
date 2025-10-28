@@ -33,7 +33,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { FileUpload } from '@/components/ui/file-upload'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { GoogleDriveFilePicker } from '@/components/ui/google-drive-file-picker'
+import { GoogleDrivePicker } from '@/components/ui/google-drive-picker'
 import { Loader2, Upload, CheckCircle2, X } from 'lucide-react'
 
 const formSchema = z.object({
@@ -343,9 +343,9 @@ export function UploadRewardDialogWithFile({
                 </TabsContent>
 
                 <TabsContent value="select" className="space-y-4">
-                  <GoogleDriveFilePicker
+                  <GoogleDrivePicker
                     onFileSelect={(file) => setSelectedDriveFile(file)}
-                    selectedFileId={selectedDriveFile?.id || null}
+                    accept="both"
                   />
                   
                   {selectedDriveFile && (
