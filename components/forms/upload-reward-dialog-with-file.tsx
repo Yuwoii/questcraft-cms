@@ -32,7 +32,9 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { FileUpload } from '@/components/ui/file-upload'
-import { Loader2, Upload, CheckCircle2 } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { GoogleDriveFilePicker } from '@/components/ui/google-drive-file-picker'
+import { Loader2, Upload, CheckCircle2, X } from 'lucide-react'
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
@@ -54,6 +56,16 @@ interface Collection {
   iconEmoji: string
 }
 
+interface GoogleDriveFile {
+  id: string
+  name: string
+  mimeType: string
+  thumbnailLink?: string
+  size?: string
+  createdTime: string
+  webViewLink: string
+}
+
 type UploadStep = 'form' | 'uploading' | 'complete'
 
 export function UploadRewardDialogWithFile({
@@ -70,8 +82,10 @@ export function UploadRewardDialogWithFile({
   // File states
   const [mainFile, setMainFile] = useState<File | null>(null)
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
-  const [uploadedFileId, setUploadedFileId] = useState<string | null>(null)
-  const [uploadedThumbnailId, setUploadedThumbnailId] = useState<string | null>(null)
+  
+  // Tab and Google Drive selection states
+  const [activeTab, setActiveTab] = useState<'upload' | 'select'>('upload')
+  const [selectedDriveFile, setSelectedDriveFile] = useState<GoogleDriveFile | null>(null)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -91,8 +105,8 @@ export function UploadRewardDialogWithFile({
       setUploadProgress(0)
       setMainFile(null)
       setThumbnailFile(null)
-      setUploadedFileId(null)
-      setUploadedThumbnailId(null)
+      setActiveTab('upload')
+      setSelectedDriveFile(null)
     }
   }, [open])
 
@@ -129,10 +143,42 @@ export function UploadRewardDialogWithFile({
     return response.json()
   }
 
+  // Helper function to extract thumbnail ID from Google Drive URLs
+  function extractThumbnailId(url: string): string | null {
+    // Try pattern: .../uc?id=FILE_ID or ?id=FILE_ID
+    const idMatch = url.match(/[?&]id=([^&]+)/)
+    if (idMatch) return idMatch[1]
+
+    // Try pattern: https://lh3.googleusercontent.com/d/FILE_ID
+    const lh3Match = url.match(/\/d\/([^/?]+)/)
+    if (lh3Match) return lh3Match[1]
+
+    // Try pattern: /file/d/FILE_ID/
+    const fileMatch = url.match(/\/file\/d\/([^/?]+)/)
+    if (fileMatch) return fileMatch[1]
+
+    return null
+  }
+
   async function onSubmit(data: FormValues) {
-    if (!mainFile) {
+    // Validate file selection based on active tab
+    if (activeTab === 'upload' && !mainFile) {
       alert('Please select a file to upload')
       return
+    }
+    if (activeTab === 'select' && !selectedDriveFile) {
+      alert('Please select a file from Google Drive')
+      return
+    }
+
+    // Comment 3: Validate MIME type for selected Drive files
+    if (activeTab === 'select') {
+      const isValidMediaType = selectedDriveFile!.mimeType.startsWith('image/') || 
+                                selectedDriveFile!.mimeType.startsWith('video/')
+      if (!isValidMediaType) {
+        alert('Please select an image or video file. Selected file type is not supported.')
+        return
+      }
     }
 
     try {
@@ -140,44 +186,59 @@ export function UploadRewardDialogWithFile({
       setUploadStep('uploading')
       setUploadProgress(10)
 
-      // Determine media type from file
-      const mediaType = mainFile.type.startsWith('image/') ? 'image' : 'video'
+      // Comment 1 & 4: Use local variables instead of state for building payload
+      let fileId: string
+      let thumbnailId: string | null = null
 
-      // Upload main file
-      setUploadProgress(20)
-      const mainFileResult = await uploadFile(mainFile)
-      setUploadedFileId(mainFileResult.fileId)
-      setUploadProgress(50)
-
-      // Auto-generate thumbnail for video (or use manual upload if provided)
-      let thumbnailId = null
-      if (mediaType === 'video') {
-        if (thumbnailFile) {
-          // Manual thumbnail provided
-          setUploadProgress(60)
-          const thumbnailResult = await uploadFile(thumbnailFile)
-          setUploadedThumbnailId(thumbnailResult.fileId)
-          thumbnailId = thumbnailResult.fileId
-          setUploadProgress(80)
-        } else if (mainFileResult.thumbnailUrl) {
-          // Auto-generated thumbnail from Google Drive
-          // Extract file ID from thumbnail URL
-          const match = mainFileResult.thumbnailUrl.match(/id=([^&]+)/)
-          if (match) {
-            thumbnailId = match[1]
-            setUploadedThumbnailId(thumbnailId)
-          }
-          setUploadProgress(80)
-        }
+      // Determine media type based on active mode
+      let mediaType: 'image' | 'video'
+      if (activeTab === 'upload') {
+        mediaType = mainFile!.type.startsWith('image/') ? 'image' : 'video'
+      } else {
+        mediaType = selectedDriveFile!.mimeType.startsWith('image/') ? 'image' : 'video'
       }
 
-      // Create reward in database
+      if (activeTab === 'upload') {
+        // Upload mode: upload main file to Google Drive
+        setUploadProgress(20)
+        const mainFileResult = await uploadFile(mainFile!)
+        fileId = mainFileResult.fileId
+        setUploadProgress(50)
+
+        // Auto-generate thumbnail for video (or use manual upload if provided)
+        if (mediaType === 'video') {
+          if (thumbnailFile) {
+            // Manual thumbnail provided
+            setUploadProgress(60)
+            const thumbnailResult = await uploadFile(thumbnailFile)
+            thumbnailId = thumbnailResult.fileId
+            setUploadProgress(80)
+          } else if (mainFileResult.thumbnailUrl) {
+            // Comment 2: Improved thumbnail extraction with multiple patterns
+            thumbnailId = extractThumbnailId(mainFileResult.thumbnailUrl)
+            setUploadProgress(80)
+          }
+        }
+      } else {
+        // Selection mode: use existing file from Google Drive
+        fileId = selectedDriveFile!.id
+        setUploadProgress(50)
+
+        // For videos, extract thumbnail ID from thumbnailLink if available
+        if (mediaType === 'video' && selectedDriveFile!.thumbnailLink) {
+          // Comment 2: Improved thumbnail extraction with multiple patterns
+          thumbnailId = extractThumbnailId(selectedDriveFile!.thumbnailLink)
+        }
+        setUploadProgress(80)
+      }
+
+      // Create reward in database using local variables
       const rewardData = {
         name: data.name,
         description: data.description,
         rarity: data.rarity,
         mediaType,
-        googleDriveFileId: mainFileResult.fileId,
+        googleDriveFileId: fileId,
         googleDriveThumbnailId: thumbnailId,
         collectionId: data.collectionId,
       }
@@ -203,6 +264,7 @@ export function UploadRewardDialogWithFile({
         form.reset()
         setMainFile(null)
         setThumbnailFile(null)
+        setSelectedDriveFile(null)
         onOpenChange(false)
         router.refresh()
       }, 1500)
@@ -223,13 +285,15 @@ export function UploadRewardDialogWithFile({
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {uploadStep === 'form' && 'Upload Reward'}
-            {uploadStep === 'uploading' && 'Uploading...'}
+            {uploadStep === 'form' && 'Add Reward'}
+            {uploadStep === 'uploading' && (activeTab === 'upload' ? 'Uploading...' : 'Processing...')}
             {uploadStep === 'complete' && 'Upload Complete!'}
           </DialogTitle>
           <DialogDescription>
-            {uploadStep === 'form' && 'Upload a file and it will be automatically added to Google Drive'}
-            {uploadStep === 'uploading' && 'Please wait while your files are being uploaded'}
+            {uploadStep === 'form' && 'Upload a new file or choose an existing one from Google Drive'}
+            {uploadStep === 'uploading' && (activeTab === 'upload' 
+              ? 'Please wait while your files are being uploaded' 
+              : 'Please wait while your reward is being created')}
             {uploadStep === 'complete' && 'Your reward has been successfully created'}
           </DialogDescription>
         </DialogHeader>
@@ -237,34 +301,79 @@ export function UploadRewardDialogWithFile({
         {uploadStep === 'form' && (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Main File * {isVideo && '(Video)'}
-                </label>
-                <FileUpload
-                  value={mainFile}
-                  onFileSelect={setMainFile}
-                  onClear={() => setMainFile(null)}
-                  accept="image/*,video/*"
-                />
-              </div>
+              <Tabs 
+                value={activeTab} 
+                onValueChange={(value) => setActiveTab(value as 'upload' | 'select')}
+                defaultValue="upload"
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="upload">Upload New</TabsTrigger>
+                  <TabsTrigger value="select">Choose Existing</TabsTrigger>
+                </TabsList>
 
-              {isVideo && (
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Thumbnail (Optional)
-                  </label>
-                  <FileUpload
-                    value={thumbnailFile}
-                    onFileSelect={setThumbnailFile}
-                    onClear={() => setThumbnailFile(null)}
-                    accept="image/*"
+                <TabsContent value="upload" className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Main File * {isVideo && '(Video)'}
+                    </label>
+                    <FileUpload
+                      value={mainFile}
+                      onFileSelect={setMainFile}
+                      onClear={() => setMainFile(null)}
+                      accept="image/*,video/*"
+                    />
+                  </div>
+
+                  {isVideo && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Thumbnail (Optional)
+                      </label>
+                      <FileUpload
+                        value={thumbnailFile}
+                        onFileSelect={setThumbnailFile}
+                        onClear={() => setThumbnailFile(null)}
+                        accept="image/*"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Upload a thumbnail image for the video preview
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="select" className="space-y-4">
+                  <GoogleDriveFilePicker
+                    onFileSelect={(file) => setSelectedDriveFile(file)}
+                    selectedFileId={selectedDriveFile?.id || null}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Upload a thumbnail image for the video preview
-                  </p>
-                </div>
-              )}
+                  
+                  {selectedDriveFile && (
+                    <div className="flex items-center gap-3 p-4 border-2 border-primary rounded-lg bg-primary/5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 mb-1">
+                          Selected File
+                        </p>
+                        <p className="text-sm text-gray-700 truncate">
+                          {selectedDriveFile.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {selectedDriveFile.size ? `${(parseInt(selectedDriveFile.size) / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'} • {selectedDriveFile.mimeType.startsWith('image/') ? 'Image' : 'Video'}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedDriveFile(null)}
+                        className="flex-shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
 
               <FormField
                 control={form.control}
@@ -368,10 +477,18 @@ export function UploadRewardDialogWithFile({
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isLoading || loadingCollections || !mainFile}>
+                <Button 
+                  type="submit" 
+                  disabled={
+                    isLoading || 
+                    loadingCollections || 
+                    (activeTab === 'upload' && !mainFile) || 
+                    (activeTab === 'select' && !selectedDriveFile)
+                  }
+                >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   <Upload className="mr-2 h-4 w-4" />
-                  Upload Reward
+                  {activeTab === 'upload' ? 'Upload Reward' : 'Add Reward'}
                 </Button>
               </div>
             </form>
@@ -382,7 +499,9 @@ export function UploadRewardDialogWithFile({
           <div className="space-y-4 py-8">
             <div className="flex flex-col items-center justify-center">
               <Loader2 className="h-16 w-16 animate-spin text-blue-500 mb-4" />
-              <p className="text-lg font-medium mb-2">Uploading to Google Drive...</p>
+              <p className="text-lg font-medium mb-2">
+                {activeTab === 'upload' ? 'Uploading to Google Drive...' : 'Creating reward...'}
+              </p>
               <div className="w-full max-w-md">
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
                   <div
