@@ -96,14 +96,9 @@ export function GoogleDrivePicker({
 
   // Open the picker
   const openPicker = useCallback(() => {
-    // Validate environment variables
+    // Validate environment variables (API key and App ID are optional with OAuth)
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY
     const appId = process.env.NEXT_PUBLIC_GOOGLE_APP_ID
-
-    if (!apiKey || !appId) {
-      setError('Google Picker API is not configured. Please set NEXT_PUBLIC_GOOGLE_API_KEY and NEXT_PUBLIC_GOOGLE_APP_ID in your environment variables.')
-      return
-    }
 
     // Check if session has access token
     if (!session?.accessToken) {
@@ -123,11 +118,17 @@ export function GoogleDrivePicker({
     // Create the picker
     const builder = new google.picker.PickerBuilder()
       .setOAuthToken(session.accessToken as string)
-      .setDeveloperKey(apiKey)
-      .setAppId(appId)
       .setCallback(handlePickerCallback)
       .setTitle('Select from Google Drive')
       .setOrigin(window.location.origin)
+
+    // Add optional API key and App ID if provided (improves quota management)
+    if (apiKey) {
+      builder.setDeveloperKey(apiKey)
+    }
+    if (appId) {
+      builder.setAppId(appId)
+    }
 
     // Add views based on accept prop
     if (accept === 'images' || accept === 'both') {
